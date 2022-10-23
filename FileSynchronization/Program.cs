@@ -1,37 +1,97 @@
 ﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+Console.WriteLine("Provide Folder paths, synchronization interval and log file path");
+Console.WriteLine(args.ToString());
+Console.WriteLine(args.Length);
 
-string sourcePath = "C:\\Users\\Marcos\\Desktop\\FileSynch\\Original";
-string replicaPath = "C:\\Users\\Marcos\\Desktop\\FileSynch\\Copied";
-string logPath = "C:\\Users\\Marcos\\Desktop\\FileSynch\\Log\\log.txt";
-float interval = 2; //time in seconds
+if (!(args.Length == 4))
+{
+    throw new ArgumentException("There should be 4 arguments");
+}
 
-var timer = new PeriodicTimer(TimeSpan.FromSeconds(interval));
+string sourcePath = args[0];
+string replicaPath = args[1];
+string logPath = args[2];
+int interval; //time in milliseconds
+
+if (!Directory.Exists(sourcePath))
+{
+    throw new ArgumentException("1st argument should be a valid directory_path");
+}
+
+if (!Directory.Exists(replicaPath))
+{
+    throw new ArgumentException("2nd argument should be a valid directorty_path");
+}
+
+if (!File.Exists(logPath))
+{
+    throw new ArgumentException("3rd argument should be a valid file_path");
+}
+
+if (!int.TryParse(args[3], out interval))
+{
+    throw new ArgumentException("4th argument should be an int");
+}
+
+writeLog($@"
+Starting with arguments
+  - Source path: {sourcePath}
+  - Replica path: {replicaPath}
+  - Log path: {logPath}
+  - Interval: {interval} ms
+");
+
+var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(interval));
 
 while (await timer.WaitForNextTickAsync())
 {
+    syncDirectories();
+}
 
-    Console.WriteLine("*****");
+void syncDirectories()
+{
+    writeLog("Syncing starts at: "+DateTime.Now.ToString());
     copyDirectory(sourcePath, replicaPath);
     deleteDirectory(sourcePath, replicaPath);
-
+    writeLog("Syncing completed at: " + DateTime.Now.ToString());
 }
 
 void copyDirectory(string source, string replica)
 {
+    var sourceDirs = Directory.GetDirectories(source, "*", SearchOption.AllDirectories);
     //Create all the subdirectories in the replica directory
-    foreach (string dirPath in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+    foreach (string dir in sourceDirs)
     {
-        Directory.CreateDirectory(dirPath.Replace(source, replica));
+        Directory.CreateDirectory(dir.Replace(source, replica));
     }
 
+    var sourceFiles = Directory.GetFiles(source, "*.*", SearchOption.AllDirectories);
     //Copy all the files and Replaces any files with the same name
-    foreach (string newPath in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
+    foreach (string sourceFile in sourceFiles)
     {
-        Console.WriteLine("File: " + newPath.Split('\\').Last() + " is being copied in: " + newPath.Replace(source, replica));
-        File.Copy(newPath, newPath.Replace(source, replica), true);
-    }
+        String replicaFile = sourceFile.Replace(source, replica);
+        //checks if file exists in replica foulder
+        if (File.Exists(replicaFile))
+        {
+            //checks if files are the same using date
+            DateTime sourceTime = File.GetLastWriteTime(sourceFile);
+            DateTime replicaTime = File.GetLastWriteTime(replicaFile);
+            if (sourceTime != replicaTime)
+            {
+                String msn = "File is outdated, overwriting: " + sourceFile;
+                writeLog(msn);
+                File.Copy(sourceFile, replicaFile, true);
+            }
 
+        }
+        else
+        {
+            String msn = "Coping file: " + sourceFile;
+
+            writeLog(msn);
+            File.Copy(sourceFile, replicaFile, true);
+        }
+    }
 }
 
 void deleteDirectory(string source, string replica)
@@ -39,33 +99,28 @@ void deleteDirectory(string source, string replica)
     var dirSource = Directory.GetDirectories(source, "*", SearchOption.AllDirectories);
     var dirReplica = Directory.GetDirectories(replica, "*", SearchOption.AllDirectories);
 
-    //deletes directories not in Source directory
-    foreach (var directory in dirReplica) if (!Directory.Exists(Path.Combine(source, directory.Split('\\').Last())))
-        {
-            Console.WriteLine("Deleting directory: " + directory);
-            Directory.Delete(directory, true);
 
+    //deletes directories not in Source directory
+    foreach (var directory in dirReplica.Reverse()) if (!Directory.Exists(directory.Replace(replica, source)))
+        {
+            writeLog("Deleting directory: " + directory);
+            Directory.Delete(directory, true);
         }
 
     var filesSource = Directory.GetFiles(source, "*.*", SearchOption.AllDirectories);
     var filesReplica = Directory.GetFiles(replica, "*.*", SearchOption.AllDirectories);
 
     //deletes files not in Source directory
-    foreach (var files in filesReplica) if (!File.Exists(Path.Combine(source, files.Split('\\').Last())))
+    foreach (var file in filesReplica) if (!File.Exists(file.Replace(replica, source)))
         {
-            Console.WriteLine("Deleting file: " + files);
-            File.Delete(files);
-
+            writeLog("Deleting file: " + file);
+            File.Delete(file);
         }
+}
 
-    /*        foreach(var directory in dirReplica) if (!Directory.Exists(Path.Combine(source, directory.Split('\\').Last())))
-            {
-
-               // Console.WriteLine(Path.Combine(replica, directory.Split('\\').Last()));
-                //Console.WriteLine(Path.Combine(source, directory.Split('\\').Last()));
-                Console.WriteLine(Directory.Exists(Path.Combine(source, directory.Split('\\').Last())));
-                Console.WriteLine(directory);
-                Directory.Delete(directory, true);
-                Console.WriteLine("Deleting directory: " + directory);
-            }*/
+void writeLog(String msn)
+{
+    String message = msn + "\n";
+    File.AppendAllText(logPath, message);
+    Console.WriteLine(msn);
 }

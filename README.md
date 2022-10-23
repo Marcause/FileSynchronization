@@ -8,7 +8,7 @@ Provide in the following order:
 	- Source folder path
 	- Replica folder path
 	- Log file path
-	- Synchronization interval in seconds
+	- Synchronization interval in milliseconds
 
 # Task:
 
@@ -20,3 +20,8 @@ Implement a program that synchronizes two folders: source and replica. The progr
 - Folder paths, synchronization interval and log file path should be provided using the command line arguments;
 - It is undesirable to use third-party libraries that implement folder synchronization;
 - It is allowed (and recommended) to use external libraries implementing other well-known algorithms. For example, there is no point in implementing yet another function that calculates MD5 if you need it for the task – it is perfectly acceptable to use a third-party (or built-in) library.
+
+# Solution explanation:
+
+
+The program is executing in a loop every `interval` milliseconds.
