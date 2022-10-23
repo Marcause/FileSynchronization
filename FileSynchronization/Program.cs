@@ -1,8 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Provide Folder paths, synchronization interval and log file path");
-Console.WriteLine(args.ToString());
-Console.WriteLine(args.Length);
-
+﻿
 if (!(args.Length == 4))
 {
     throw new ArgumentException("There should be 4 arguments");
